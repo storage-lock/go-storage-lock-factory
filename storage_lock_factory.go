@@ -28,13 +28,13 @@ func (x *StorageLockFactory[Connection]) CreateLockWithOptions(lockId string, op
 
 func (x *StorageLockFactory[Connection]) Shutdown(ctx context.Context) error {
 
-	// 关闭连接管理器
-	if err := x.ConnectionManager.Shutdown(ctx); err != nil {
+	// 关闭Storage
+	if err := x.Storage.Close(ctx); err != nil {
 		return err
 	}
 
-	// 关闭Storage
-	if err := x.Storage.Close(ctx); err != nil {
+	// 关闭连接管理器
+	if err := x.ConnectionManager.Shutdown(ctx); err != nil {
 		return err
 	}
 
