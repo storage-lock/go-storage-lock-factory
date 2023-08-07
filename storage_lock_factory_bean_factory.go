@@ -2,6 +2,7 @@ package storage_lock_factory
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
@@ -68,4 +69,47 @@ func (x *StorageLockFactoryBeanFactory[Key, Connection]) GetBean(key Key) (*Bean
 
 	bean, exists := x.keyStorageLockMap[key]
 	return bean, exists
+}
+
+func (x *StorageLockFactoryBeanFactory[Key, Connection]) Shutdown(ctx context.Context, key Key) error {
+	bean, b := x.GetBean(key)
+	if !b {
+		return fmt.Errorf("not found")
+	}
+	if bean.Err != nil {
+		return bean.Err
+	}
+	return bean.Factory.Shutdown(ctx)
+}
+
+func (x *StorageLockFactoryBeanFactory[Key, Connection]) ShutdownAll(ctx context.Context) map[Key]error {
+	x.keyStorageLockMapLock.Lock()
+	x.keyStorageLockMapLock.Unlock()
+
+	errorMap := make(map[Key]error)
+	for key, bean := range x.keyStorageLockMap {
+		if bean.Factory == nil {
+			errorMap[key] = bean.Err
+			continue
+		}
+		errorMap[key] = bean.Factory.Shutdown(ctx)
+	}
+	return errorMap
+}
+
+// Remove 从BeanFactory中删除给定key的实例
+func (x *StorageLockFactoryBeanFactory[Key, Connection]) Remove(key Key) (*StorageLockFactory[Connection], bool) {
+	x.keyStorageLockMapLock.Lock()
+	defer x.keyStorageLockMapLock.Unlock()
+
+	bean, exists := x.keyStorageLockMap[key]
+	delete(x.keyStorageLockMap, key)
+	return bean.Factory, exists
+}
+
+func (x *StorageLockFactoryBeanFactory[Key, Connection]) VisitBeanMap(visitFunc func(beanMap map[Key]*Bean[Connection])) {
+	x.keyStorageLockMapLock.Lock()
+	defer x.keyStorageLockMapLock.Unlock()
+
+	visitFunc(x.keyStorageLockMap)
 }
