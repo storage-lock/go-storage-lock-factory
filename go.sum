@@ -9,6 +9,8 @@ github.com/golang-infrastructure/go-pointer v0.0.5 h1:wzZ/XnXKzD3DWECTnUpUh+xAlG
 github.com/golang-infrastructure/go-pointer v0.0.5/go.mod h1:SBP0/8QH+mr8LGP/tDo28EQ2b45WqfzjXYbPjmK88g8=
 github.com/golang-infrastructure/go-reflect-utils v0.0.0-20221130143747-965ef2eb09c3 h1:jJ7AdpNdLQudsx1hiXY9iwmauHARV4/UB52KnBh9Se0=
 github.com/golang-infrastructure/go-reflect-utils v0.0.0-20221130143747-965ef2eb09c3/go.mod h1:zqXYxqOBa1mL2ilBK6PuH/Wb/Iego7en6XhiKWdZQHI=
+github.com/golang-infrastructure/go-tuple v0.0.0-20221215155811-4ed54fe7d579 h1:pQV2/ichhyLoR3aJSNXByuxtdPM2y229Rq5x9DGl5OU=
+github.com/golang-infrastructure/go-tuple v0.0.0-20221215155811-4ed54fe7d579/go.mod h1:cn8fHK0Sjxh7nSrnNpRa9wi1wIsmBLsjOip4LTjQz+Q=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=

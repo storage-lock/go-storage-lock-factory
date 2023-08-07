@@ -6,6 +6,7 @@ import (
 	storage_lock "github.com/storage-lock/go-storage-lock"
 )
 
+// StorageLockFactory 锁的工厂，锁底层是有一些资源需要管理的，这些资源可能会被多次重复使用和不使用时的资源销毁等，这个Factory就是用来管理这个的
 type StorageLockFactory[Connection any] struct {
 	Storage           storage.Storage
 	ConnectionManager storage.ConnectionManager[Connection]

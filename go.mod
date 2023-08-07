@@ -13,6 +13,7 @@ require (
 	github.com/golang-infrastructure/go-iterator v0.0.0-20230524171120-56988a9b127c // indirect
 	github.com/golang-infrastructure/go-pointer v0.0.5 // indirect
 	github.com/golang-infrastructure/go-reflect-utils v0.0.0-20221130143747-965ef2eb09c3 // indirect
+	github.com/golang-infrastructure/go-tuple v0.0.0-20221215155811-4ed54fe7d579 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
