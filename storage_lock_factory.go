@@ -23,7 +23,7 @@ func (x *StorageLockFactory[Connection]) CreateLock(lockId string) (*storage_loc
 	return storage_lock.NewStorageLock(x.Storage, lockId)
 }
 
-func (x *StorageLockFactory[Connection]) CreateLockWithOptions(lockId string, options *storage_lock.StorageLockOptions) (*storage_lock.StorageLock, error) {
+func (x *StorageLockFactory[Connection]) CreateLockWithOptions(options *storage_lock.StorageLockOptions) (*storage_lock.StorageLock, error) {
 	return storage_lock.NewStorageLockWithOptions(x.Storage, options)
 }
 
