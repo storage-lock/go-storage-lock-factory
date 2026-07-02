@@ -163,3 +163,64 @@ func TestBeanFactoryConcurrentShutdownAllNoCrash(t *testing.T) {
 	wg.Wait()
 	// 走到这里说明没有 fatal crash（漏洞 L 的 ShutdownAll 路径修复有效）
 }
+
+// TestBeanFactoryShutdownRemovesBean 钉死漏洞5：Shutdown 成功后 bean 从 map 移除，
+// 后续 GetOrInit 不会命中"已死"工厂，而是重新初始化。
+// 修复前 Shutdown 不删 bean，GetOrInit 仍返回已 Close 的工厂，调用方 Lock 走已关 Storage；
+// 且 map 永不缩容（资源泄漏）。
+func TestBeanFactoryShutdownRemovesBean(t *testing.T) {
+	beanFactory := NewStorageLockFactoryBeanFactory[string, string]()
+
+	var initCount int64
+	key := "shutdown-remove-key"
+	f1, err := beanFactory.GetOrInit(context.Background(), key, func(ctx context.Context) (*StorageLockFactory[string], error) {
+		atomic.AddInt64(&initCount, 1)
+		return NewStorageLockFactory[string](nil, nil), nil // nil Storage/CM，Shutdown 走 nil 守卫不 panic
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, f1)
+	assert.Equal(t, int64(1), initCount)
+
+	// Shutdown 后该 key 应从 map 移除
+	err = beanFactory.Shutdown(context.Background(), key)
+	assert.Nil(t, err)
+
+	// 再次 GetOrInit 应重新初始化（initCount=2），而非返回已死的 f1
+	f2, err := beanFactory.GetOrInit(context.Background(), key, func(ctx context.Context) (*StorageLockFactory[string], error) {
+		atomic.AddInt64(&initCount, 1)
+		return NewStorageLockFactory[string](nil, nil), nil
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, int64(2), initCount, "Shutdown 后应重新初始化，而非返回已死工厂（漏洞5）")
+	// 两个工厂是不同实例（NewStorageLockFactory 各自 new）
+	assert.NotSame(t, f1, f2, "应得到全新工厂实例，而非已 Shutdown 的旧实例")
+
+	// 清理
+	_ = beanFactory.Shutdown(context.Background(), key)
+}
+
+// TestBeanFactoryShutdownAllClearsMap 钉死漏洞5 的 ShutdownAll 路径：
+// ShutdownAll 后 map 应清空，GetOrInit 全部重新初始化。
+func TestBeanFactoryShutdownAllClearsMap(t *testing.T) {
+	beanFactory := NewStorageLockFactoryBeanFactory[string, string]()
+
+	var initCount int64
+	initFn := func(ctx context.Context) (*StorageLockFactory[string], error) {
+		atomic.AddInt64(&initCount, 1)
+		return NewStorageLockFactory[string](nil, nil), nil
+	}
+	_, _ = beanFactory.GetOrInit(context.Background(), "k1", initFn)
+	_, _ = beanFactory.GetOrInit(context.Background(), "k2", initFn)
+	_, _ = beanFactory.GetOrInit(context.Background(), "k3", initFn)
+	assert.Equal(t, int64(3), initCount)
+
+	errMap := beanFactory.ShutdownAll(context.Background())
+	// 全 nil Storage/CM，ShutdownAll 走 nil 守卫，每个工厂 Shutdown 应返回 nil
+	for k, e := range errMap {
+		assert.Nil(t, e, "key=%v 的 Shutdown 应返回 nil（nil Storage/CM 走守卫）", k)
+	}
+
+	// ShutdownAll 后 map 应清空，再次 GetOrInit 全部重新初始化
+	_, _ = beanFactory.GetOrInit(context.Background(), "k1", initFn)
+	assert.Equal(t, int64(4), initCount, "ShutdownAll 清空 map 后应重新初始化（漏洞5）")
+}

@@ -30,13 +30,20 @@ func (x *StorageLockFactory[Connection]) CreateLockWithOptions(options *storage_
 func (x *StorageLockFactory[Connection]) Shutdown(ctx context.Context) error {
 
 	// 关闭Storage
-	if err := x.Storage.Close(ctx); err != nil {
-		return err
+	// nil 守卫：go-memory-locks 等不需要连接管理器的场景会传 nil Storage/ConnectionManager
+	// （MemoryStorage 无外部资源），Shutdown 不应因此 panic
+	if x.Storage != nil {
+		if err := x.Storage.Close(ctx); err != nil {
+			return err
+		}
 	}
 
 	// 关闭连接管理器
-	if err := x.ConnectionManager.Shutdown(ctx); err != nil {
-		return err
+	// nil 守卫：同上，nil ConnectionManager 是合法用法（如 MemoryStorage）
+	if x.ConnectionManager != nil {
+		if err := x.ConnectionManager.Shutdown(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil

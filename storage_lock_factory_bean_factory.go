@@ -87,15 +87,28 @@ func (x *StorageLockFactoryBeanFactory[Key, Connection]) GetBean(key Key) (*Bean
 	return bean, exists
 }
 
+// Shutdown 关闭指定 key 的工厂。
+//
+// 漏洞5 修复：关闭后从 map 移除该 bean，否则 GetOrInit 仍会命中并返回"已死"工厂，
+// 调用方 Lock 时走已 Close 的 Storage/ConnectionManager，且 map 永不缩容（资源泄漏）。
 func (x *StorageLockFactoryBeanFactory[Key, Connection]) Shutdown(ctx context.Context, key Key) error {
 	bean, b := x.GetBean(key)
 	if !b {
 		return fmt.Errorf("not found")
 	}
 	if bean.Err != nil {
+		// 初始化失败的 bean 也从 map 移除，让后续 GetOrInit 可重试初始化
+		x.keyStorageLockMapLock.Lock()
+		delete(x.keyStorageLockMap, key)
+		x.keyStorageLockMapLock.Unlock()
 		return bean.Err
 	}
-	return bean.Factory.Shutdown(ctx)
+	err := bean.Factory.Shutdown(ctx)
+	// 无论 Shutdown 成功与否都移除：成功则避免返回已死工厂；失败则 bean 状态已不可靠，移除让下次重试
+	x.keyStorageLockMapLock.Lock()
+	delete(x.keyStorageLockMap, key)
+	x.keyStorageLockMapLock.Unlock()
+	return err
 }
 
 // ShutdownAll 关闭所有工厂。
@@ -105,6 +118,8 @@ func (x *StorageLockFactoryBeanFactory[Key, Connection]) Shutdown(ctx context.Co
 // 修复：持写锁快照出所有 bean（仅拷贝指针，耗时极短），释放锁后再逐个 Shutdown——
 // 避免持锁期间 Shutdown 耗时（关连接池）阻塞其它操作，也避免 Shutdown 内部若回调
 // BeanFactory 造成死锁。
+//
+// 漏洞5 修复：Shutdown 完成后持写锁清空 map，避免 GetOrInit 命中"已死"工厂与 map 永不缩容。
 func (x *StorageLockFactoryBeanFactory[Key, Connection]) ShutdownAll(ctx context.Context) map[Key]error {
 	x.keyStorageLockMapLock.Lock()
 	beans := make([]struct {
@@ -127,6 +142,10 @@ func (x *StorageLockFactoryBeanFactory[Key, Connection]) ShutdownAll(ctx context
 		}
 		errorMap[b.key] = b.bean.Factory.Shutdown(ctx)
 	}
+	// 漏洞5：清空 map，已关闭的工厂不再被 GetOrInit 命中
+	x.keyStorageLockMapLock.Lock()
+	x.keyStorageLockMap = make(map[Key]*Bean[Connection])
+	x.keyStorageLockMapLock.Unlock()
 	return errorMap
 }
 
