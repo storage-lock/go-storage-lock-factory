@@ -14,6 +14,7 @@ import (
 
 // mockFairLockStorage 实现最小 Storage 接口，用于公平锁测试
 type mockFairLockStorage struct {
+	record    string
 	mu        sync.Mutex
 	owner     string
 	waitCount int
@@ -39,6 +40,12 @@ func (m *mockFairLockStorage) UpdateWithVersion(ctx context.Context, lockId stri
 	if m.owner != lockInformation.OwnerId {
 		return storage_lock.ErrVersionMiss
 	}
+	m.record = lockInformation.ToJsonString()
+
+	if lockInformation.LockCount == 0 {
+		m.owner = ""
+		m.record = ""
+	}
 	return nil
 }
 
@@ -58,7 +65,10 @@ func (m *mockFairLockStorage) Get(ctx context.Context, lockId string) (string, e
 	if m.owner == "" {
 		return "", storage_lock.ErrLockNotFound
 	}
-	return `{"lock_id":"` + lockId + `","owner_id":"` + m.owner + `","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"2024-01-01T05:00:00Z"}`, nil
+	if m.record != "" {
+		return m.record, nil
+	}
+	return `{"lock_id":"` + lockId + `","owner_id":"` + m.owner + `","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `"}`, nil
 }
 
 func (m *mockFairLockStorage) GetTime(ctx context.Context) (time.Time, error) {

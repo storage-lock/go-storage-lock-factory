@@ -14,6 +14,7 @@ import (
 
 // mockDistributedStorage 实现最小 Storage 接口，用于跨节点公平锁测试
 type mockDistributedStorage struct {
+	record string
 	owners map[string]string // lockId -> ownerId
 }
 
@@ -37,6 +38,12 @@ func (m *mockDistributedStorage) UpdateWithVersion(ctx context.Context, lockId s
 	if current, ok := m.owners[lockId]; !ok || current != lockInformation.OwnerId {
 		return storage_lock.ErrVersionMiss
 	}
+	m.record = lockInformation.ToJsonString()
+
+	if lockInformation.LockCount == 0 {
+		delete(m.owners, lockId)
+		m.record = ""
+	}
 	return nil
 }
 
@@ -53,7 +60,10 @@ func (m *mockDistributedStorage) Get(ctx context.Context, lockId string) (string
 	if !ok || owner == "" {
 		return "", storage_lock.ErrLockNotFound
 	}
-	return `{"lock_id":"` + lockId + `","owner_id":"` + owner + `","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"2024-01-01T05:00:00Z"}`, nil
+	if m.record != "" {
+		return m.record, nil
+	}
+	return `{"lock_id":"` + lockId + `","owner_id":"` + owner + `","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `"}`, nil
 }
 
 func (m *mockDistributedStorage) GetTime(ctx context.Context) (time.Time, error) {

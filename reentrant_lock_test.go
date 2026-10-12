@@ -13,7 +13,8 @@ import (
 
 // mockReentrantStorage 实现最小 Storage 接口，用于可重入锁测试
 type mockReentrantStorage struct {
-	owner string
+	record string
+	owner  string
 }
 
 func (m *mockReentrantStorage) Capabilities() []storage.StorageCapability {
@@ -32,6 +33,12 @@ func (m *mockReentrantStorage) UpdateWithVersion(ctx context.Context, lockId str
 	if m.owner != lockInformation.OwnerId {
 		return storage_lock.ErrVersionMiss
 	}
+	m.record = lockInformation.ToJsonString()
+
+	if lockInformation.LockCount == 0 {
+		m.owner = ""
+		m.record = ""
+	}
 	return nil
 }
 
@@ -47,7 +54,10 @@ func (m *mockReentrantStorage) Get(ctx context.Context, lockId string) (string, 
 	if m.owner == "" {
 		return "", storage_lock.ErrLockNotFound
 	}
-	return `{"lock_id":"` + lockId + `","owner_id":"` + m.owner + `","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"2024-01-01T05:00:00Z"}`, nil
+	if m.record != "" {
+		return m.record, nil
+	}
+	return `{"lock_id":"` + lockId + `","owner_id":"` + m.owner + `","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `"}`, nil
 }
 
 func (m *mockReentrantStorage) GetTime(ctx context.Context) (time.Time, error) {

@@ -98,7 +98,7 @@ func (m *mockNonWatchableStorage) DeleteWithVersion(ctx context.Context, lockId 
 }
 
 func (m *mockNonWatchableStorage) Get(ctx context.Context, lockId string) (string, error) {
-	return `{"lock_id":"lock-1","owner_id":"owner-1","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"2024-01-01T05:00:00Z"}`, nil
+	return `{"lock_id":"lock-1","owner_id":"owner-1","version":1,"lock_count":1,"lock_begin_time":"2024-01-01T00:00:00Z","lease_expire_time":"` + time.Now().UTC().Add(time.Hour).Format(time.RFC3339) + `"}`, nil
 }
 
 func (m *mockNonWatchableStorage) GetTime(ctx context.Context) (time.Time, error) {
