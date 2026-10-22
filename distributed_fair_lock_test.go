@@ -14,6 +14,7 @@ import (
 
 // mockDistributedStorage 实现最小 Storage 接口，用于跨节点公平锁测试
 type mockDistributedStorage struct {
+	mu     sync.Mutex
 	record string
 	owners map[string]string // lockId -> ownerId
 }
@@ -27,6 +28,8 @@ func (m *mockDistributedStorage) Capabilities() []storage.StorageCapability {
 }
 
 func (m *mockDistributedStorage) CreateWithVersion(ctx context.Context, lockId string, version storage.Version, lockInformation *storage.LockInformation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if current, ok := m.owners[lockId]; ok && current != "" {
 		return storage_lock.ErrVersionMiss
 	}
@@ -35,6 +38,8 @@ func (m *mockDistributedStorage) CreateWithVersion(ctx context.Context, lockId s
 }
 
 func (m *mockDistributedStorage) UpdateWithVersion(ctx context.Context, lockId string, expectedVersion, newVersion storage.Version, lockInformation *storage.LockInformation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if current, ok := m.owners[lockId]; !ok || current != lockInformation.OwnerId {
 		return storage_lock.ErrVersionMiss
 	}
@@ -48,6 +53,8 @@ func (m *mockDistributedStorage) UpdateWithVersion(ctx context.Context, lockId s
 }
 
 func (m *mockDistributedStorage) DeleteWithVersion(ctx context.Context, lockId string, expectedVersion storage.Version, lockInformation *storage.LockInformation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if current, ok := m.owners[lockId]; !ok || current != lockInformation.OwnerId {
 		return storage_lock.ErrVersionMiss
 	}
@@ -56,6 +63,8 @@ func (m *mockDistributedStorage) DeleteWithVersion(ctx context.Context, lockId s
 }
 
 func (m *mockDistributedStorage) Get(ctx context.Context, lockId string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	owner, ok := m.owners[lockId]
 	if !ok || owner == "" {
 		return "", storage_lock.ErrLockNotFound
